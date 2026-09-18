@@ -1,0 +1,37 @@
+# 服务端口配置
+server:
+  port: 8080   # Tomcat 监听端口，浏览器访问 http://localhost:8080
+
+# Spring 框架全局配置
+spring:
+  application:
+    name: studyroom
+
+  # ----- MySQL 数据源配置 -----
+  datasource:
+    #useUnicode=true：使用 Unicode 编码（支持中文）
+    #characterEncoding=utf-8：字符集设为 UTF-8
+    #serverTimezone=Asia/Shanghai：服务器时区设为东八区（上海）
+    #useSSL=false&allowPublicKeyRetrieval=true：关闭 SSL 连接（开发环境无需加密）
+    url: jdbc:mysql://localhost:3306/csr?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root    #数据库登录用户名
+    password: gyb20050903  #数据库登录密码
+    driver-class-name: com.mysql.cj.jdbc.Driver    #MySQL 8.x JDBC 驱动类
+
+  # 文件上传大小限制
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# 上传文件保存目录（项目运行目录下的 uploads/）
+file:
+  upload-dir: ./uploads
+
+# MyBatis Plus 配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml      # XML 映射文件路径（当前未使用）
+  type-aliases-package: org.example.studyroom.entity      # 实体类所在包，SQL 中可直接用类名
+  configuration:
+    map-underscore-to-camel-case: true  # 自动转换下划线字段名到驼峰属性名（如 student_no → studentNo）
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # 控制台打印 SQL 日志（开发调试用）

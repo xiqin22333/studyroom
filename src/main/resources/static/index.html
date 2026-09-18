@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>校园自习室预约管理系统</title>
+<link rel="stylesheet" href="/lib/css/element-plus.css">
+<style>
+  html, body, #app { height: 100%; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", Helvetica, Arial, sans-serif;
+    font-size: 14px; color: #303133; background: #f0f2f5;
+  }
+  /* 登录页 */
+  .login-wrap {
+    height: 100%; display: flex; align-items: center; justify-content: center;
+    background: #2f4056;
+  }
+  .login-box {
+    width: 360px; background: #fff; padding: 32px 36px;
+    border-radius: 2px; box-shadow: 0 2px 12px rgba(0,0,0,.2);
+  }
+  .login-title { text-align: center; font-size: 18px; font-weight: 600; margin-bottom: 4px; color: #303133; }
+  .login-sub { text-align: center; color: #909399; font-size: 12px; margin-bottom: 24px; }
+
+  /* 布局 */
+  .layout { height: 100%; }
+  .sidebar { background: #304156; color: #bfcbd9; }
+  .sidebar .logo {
+    height: 50px; line-height: 50px; text-align: center;
+    color: #fff; font-size: 15px; font-weight: 600;
+    background: #2b3648; letter-spacing: 1px;
+  }
+  .sidebar .el-menu { border-right: none; }
+  .topbar {
+    height: 50px; background: #fff; border-bottom: 1px solid #e6e6e6;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; box-shadow: 0 1px 4px rgba(0,21,41,.06);
+  }
+  .breadcrumb { font-size: 14px; color: #606266; }
+  .breadcrumb .cur { color: #303133; font-weight: 500; }
+  .user-area { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #606266; }
+  .main { padding: 12px; }
+  .card { background: #fff; border: 1px solid #ebeef5; border-radius: 2px; padding: 14px; }
+  .toolbar { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .spacer { flex: 1; }
+  .table-pager { margin-top: 12px; text-align: right; }
+
+  /* 工作台统计卡片 */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+  .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 2px; padding: 16px 18px; }
+  .stat-card .label { color: #909399; font-size: 13px; }
+  .stat-card .value { font-size: 26px; font-weight: 600; color: #303133; margin-top: 6px; }
+  .stat-card .foot { font-size: 12px; color: #c0c4cc; margin-top: 6px; }
+
+  /* 表单对话框 */
+  .dialog-form .el-form-item { margin-bottom: 16px; }
+  .cell-tag { margin-right: 4px; }
+  .link-btn { color: #409eff; cursor: pointer; margin-right: 10px; font-size: 13px; }
+  .link-btn.danger { color: #f56c6c; }
+  .link-btn:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- 登录页 -->
+  <div v-if="!token" class="login-wrap">
+    <div class="login-box">
+      <div class="login-title">校园自习室预约管理系统</div>
+      <div class="login-sub">Studyroom Admin</div>
+
+      <!-- 登录表单 -->
+      <el-form v-if="!registerMode" :model="loginForm" @submit.prevent="doLogin">
+        <el-form-item>
+          <el-input v-model="loginForm.username" placeholder="用户名" prefix-icon="User" size="large"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="loginForm.password" type="password" placeholder="密码"
+                    prefix-icon="Lock" size="large" @keyup.enter="doLogin"></el-input>
+        </el-form-item>
+        <el-button type="primary" style="width:100%" size="large" :loading="loginLoading" @click="doLogin">登 录</el-button>
+        <div style="margin-top:14px;text-align:center;">
+          <span style="color:#606266;font-size:13px;">还没有账号？</span>
+          <span style="color:#409EFF;cursor:pointer;font-size:13px;margin-left:4px;" @click="registerMode=true">学生注册</span>
+        </div>
+      </el-form>
+
+      <!-- 注册表单 -->
+      <el-form v-else :model="registerForm" @submit.prevent="doRegister">
+        <el-form-item>
+          <el-input v-model="registerForm.username" placeholder="用户名" prefix-icon="User" size="large"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="registerForm.passwordHash" type="password" placeholder="密码（至少6位）"
+                    prefix-icon="Lock" size="large"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="registerForm.confirmPassword" type="password" placeholder="确认密码"
+                    prefix-icon="Lock" size="large"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="registerForm.realName" placeholder="真实姓名" prefix-icon="User" size="large"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="registerForm.studentNo" placeholder="学号" prefix-icon="Postcard" size="large"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="registerForm.college" placeholder="学院（选填）" size="large"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="registerForm.major" placeholder="专业（选填）" size="large"></el-input>
+        </el-form-item>
+        <el-button type="primary" style="width:100%" size="large" :loading="registerLoading" @click="doRegister">注 册</el-button>
+        <div style="margin-top:14px;text-align:center;">
+          <span style="color:#606266;font-size:13px;">已有账号？</span>
+          <span style="color:#409EFF;cursor:pointer;font-size:13px;margin-left:4px;" @click="registerMode=false">返回登录</span>
+        </div>
+      </el-form>
+    </div>
+  </div>
+
+  <!-- 主布局 -->
+  <el-container v-else class="layout">
+    <el-aside width="210px" class="sidebar">
+      <div class="logo">自习室管理系统</div>
+      <el-menu :default-active="activeMenu" background-color="#304156"
+                text-color="#bfcbd9" active-text-color="#409EFF"
+                @select="onMenuSelect">
+        <el-menu-item index="dashboard"><el-icon><Odometer/></el-icon><span>工作台</span></el-menu-item>
+
+        <!-- 学生端菜单 -->
+        <template v-if="!isAdmin && !isTeacher">
+          <el-menu-item index="student-my"><el-icon><Tickets/></el-icon><span>我的预约</span></el-menu-item>
+          <el-menu-item index="student-pick"><el-icon><Place/></el-icon><span>选座预约</span></el-menu-item>
+          <el-menu-item index="student-profile"><el-icon><UserFilled/></el-icon><span>个人中心</span></el-menu-item>
+        </template>
+
+        <!-- 教师端菜单 -->
+        <template v-else-if="isTeacher">
+          <el-menu-item index="system-user"><el-icon><User/></el-icon><span>学生管理</span></el-menu-item>
+          <el-sub-menu index="venue">
+            <template #title><el-icon><OfficeBuilding/></el-icon><span>场地查看</span></template>
+            <el-menu-item index="venue-room">自习室</el-menu-item>
+            <el-menu-item index="venue-seat">座位</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="reservation">
+            <template #title><el-icon><Calendar/></el-icon><span>预约管理</span></template>
+            <el-menu-item index="reservation-list">预约记录</el-menu-item>
+            <el-menu-item index="reservation-checkin">签到记录</el-menu-item>
+          </el-sub-menu>
+        </template>
+
+        <!-- 管理端菜单 -->
+        <template v-if="isAdmin">
+        <el-sub-menu index="system">
+          <template #title><el-icon><Setting/></el-icon><span>系统管理</span></template>
+          <el-menu-item index="system-user">用户管理</el-menu-item>
+          <el-menu-item index="system-role">角色管理</el-menu-item>
+          <el-menu-item index="system-config">参数配置</el-menu-item>
+          <el-menu-item index="system-log">操作日志</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="venue">
+          <template #title><el-icon><OfficeBuilding/></el-icon><span>场地管理</span></template>
+          <el-menu-item index="venue-campus">校区管理</el-menu-item>
+          <el-menu-item index="venue-building">楼栋管理</el-menu-item>
+          <el-menu-item index="venue-room">自习室管理</el-menu-item>
+          <el-menu-item index="venue-seat">座位管理</el-menu-item>
+          <el-menu-item index="venue-device">设备管理</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="reservation">
+          <template #title><el-icon><Calendar/></el-icon><span>预约管理</span></template>
+          <el-menu-item index="reservation-list">预约记录</el-menu-item>
+          <el-menu-item index="reservation-rule">预约规则</el-menu-item>
+          <el-menu-item index="reservation-slot">时段管理</el-menu-item>
+          <el-menu-item index="reservation-checkin">签到记录</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="credit">
+          <template #title><el-icon><Stamp/></el-icon><span>信用管理</span></template>
+          <el-menu-item index="credit-blacklist">黑名单</el-menu-item>
+          <el-menu-item index="credit-violation">违规记录</el-menu-item>
+          <el-menu-item index="credit-log">信用流水</el-menu-item>
+        </el-sub-menu>
+
+        <el-sub-menu index="notice">
+          <template #title><el-icon><Bell/></el-icon><span>通知反馈</span></template>
+          <el-menu-item index="notice-list">消息通知</el-menu-item>
+          <el-menu-item index="notice-feedback">反馈管理</el-menu-item>
+        </el-sub-menu>
+        </template>
+      </el-menu>
+    </el-aside>
+
+    <el-container>
+      <el-header class="topbar">
+        <div class="breadcrumb">首页 / <span class="cur">{{ currentTitle }}</span></div>
+        <div class="user-area">
+          <span>{{ user.realName || user.username }}</span>
+          <el-tag v-for="r in (user.roles||[])" :key="r" size="small" class="cell-tag">{{ r }}</el-tag>
+          <el-button type="text" @click="logout">退出登录</el-button>
+        </div>
+      </el-header>
+      <el-main class="main">
+        <!-- 工作台（仅管理员） -->
+        <div v-show="activeMenu==='dashboard' && isAdmin">
+          <div class="stat-row">
+            <div class="stat-card"><div class="label">用户总数</div><div class="value">{{ stat.userTotal }}</div><div class="foot">学生 / 教师 / 管理员</div></div>
+            <div class="stat-card"><div class="label">座位总数</div><div class="value">{{ stat.seatTotal }}</div><div class="foot">分布于各自习室</div></div>
+            <div class="stat-card"><div class="label">今日预约</div><div class="value">{{ stat.todayRes }}</div><div class="foot">待签到 / 已签到 / 已完成</div></div>
+            <div class="stat-card"><div class="label">待处理反馈</div><div class="value">{{ stat.feedbackPending }}</div><div class="foot">报修 / 建议 / 投诉</div></div>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 12px;font-size:15px;">最近操作日志</h3>
+            <el-table :data="recentLogs" size="small" border>
+              <el-table-column prop="createdAt" label="时间" width="170"></el-table-column>
+              <el-table-column prop="module" label="模块" width="110"></el-table-column>
+              <el-table-column prop="action" label="动作" width="120"></el-table-column>
+              <el-table-column prop="url" label="请求地址" show-overflow-tooltip></el-table-column>
+              <el-table-column prop="ip" label="IP" width="140"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- 学生端工作台 -->
+        <div v-show="activeMenu==='dashboard' && !isAdmin && !isTeacher" class="card">
+          <h3 style="margin:0 0 16px;font-size:16px;">欢迎，{{ user.realName || user.username }}</h3>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;color:#606266;font-size:14px;">
+            <div>信用分：<b style="color:#409eff;font-size:18px;">{{ user.creditScore }}</b></div>
+            <div>学号：{{ user.studentNo }}</div>
+            <div>学院：{{ user.college || '-' }}</div>
+          </div>
+          <el-divider></el-divider>
+          <div style="color:#909399;font-size:13px;">从左侧菜单选择「选座预约」进行座位预约，或查看「我的预约」管理已有预约。</div>
+        </div>
+
+        <!-- 教师工作台 -->
+        <div v-show="activeMenu==='dashboard' && isTeacher" class="card">
+          <h3 style="margin:0 0 16px;font-size:16px;">欢迎，{{ user.realName || user.username }}（教师）</h3>
+          <div style="color:#606266;font-size:14px;line-height:2;">
+            从左侧菜单可以：<br>
+            · 「学生管理」查看和管理本校学生账号<br>
+            · 「场地查看」了解自习室分布和座位情况<br>
+            · 「预约管理」查看学生预约和签到记录
+          </div>
+        </div>
+
+        <!-- 各业务模块 -->
+        <div v-for="c in activeCompList" :key="c" v-show="activeMenu===c">
+          <component :is="compMap[c]"></component>
+        </div>
+      </el-main>
+    </el-container>
+  </el-container>
+</div>
+
+<script src="/lib/js/vue.global.prod.js"></script>
+<script src="/lib/js/element-plus.js"></script>
+<script src="/lib/js/icons.js"></script>
+<script>
+const { createApp, reactive, ref, computed, onMounted, defineComponent, h } = Vue;
+const { ElMessage, ElMessageBox } = ElementPlus;
+
+/* ========== HTTP 封装 ========== */
+async function http(url, options = {}) {
+  const opt = Object.assign({ method: 'GET', headers: {} }, options);
+  if (opt.body && typeof opt.body !== 'string') {
+    opt.headers['Content-Type'] = 'application/json';
+    opt.body = JSON.stringify(opt.body);
+  }
+  const res = await fetch(url, opt);
+  const json = await res.json();
+  if (json.code !== 200) {
+    ElMessage.error(json.message || '请求失败');
+    throw new Error(json.message);
+  }
+  return json.data;
+}
+
+/* ========== 通用 CRUD 页工厂 ========== */
+/* cfg: { api, title, columns, formItems, searchKeys, onOpened } */
+function createCrud(cfg) {
+  return defineComponent({
+    setup() {
+      const rows = ref([]);
+      const total = ref(0);
+      const query = reactive({ current: 1, size: 10 });
+      const search = reactive({});
+      const dialogVisible = ref(false);
+      const formTitle = ref('');
+      const form = reactive({});
+      const loading = ref(false);
+
+      async function load() {
+        loading.value = true;
+        const params = new URLSearchParams();
+        params.set('current', query.current);
+        params.set('size', query.size);
+        Object.keys(search).forEach(k => {
+          if (search[k] !== '' && search[k] != null) params.set(k, search[k]);
+        });
+        try {
+          const data = await http(cfg.api + '/page?' + params.toString());
+          rows.value = data.records || [];
+          total.value = data.total || 0;
+        } finally { loading.value = false; }
+      }
+
+      function resetSearch() {
+        Object.keys(search).forEach(k => search[k] = '');
+        query.current = 1;
+        load();
+      }
+
+      function openAdd() {
+        formTitle.value = '新增';
+        Object.keys(form).forEach(k => delete form[k]);
+        (cfg.formItems || []).forEach(it => { form[it.prop] = it.def != null ? it.def : (it.type === 'switch' ? 1 : null); });
+        dialogVisible.value = true;
+      }
+
+      async function openEdit(row) {
+        formTitle.value = '编辑';
+        Object.keys(form).forEach(k => delete form[k]);
+        Object.assign(form, row);
+        dialogVisible.value = true;
+      }
+
+      async function save() {
+        if (form.id) {
+          await http(cfg.api, { method: 'PUT', body: form });
+        } else {
+          await http(cfg.api, { method: 'POST', body: form });
+        }
+        ElMessage.success('保存成功');
+        dialogVisible.value = false;
+        load();
+      }
+
+      async function remove(row) {
+        await ElMessageBox.confirm('确认删除该记录？', '提示', { type: 'warning' });
+        await http(cfg.api + '/' + row.id, { method: 'DELETE' });
+        ElMessage.success('删除成功');
+        load();
+      }
+
+      onMounted(load);
+
+      return { rows, total, query, search, loading, dialogVisible, formTitle, form,
+               load, resetSearch, openAdd, openEdit, save, remove,
+               columns: cfg.columns, formItems: ref(cfg.formItems || []), searchKeys: cfg.searchKeys || [] };
+    },
+    template: `
+      <div class="card">
+        <div class="toolbar">
+          <el-input v-for="k in searchKeys" :key="k.prop" v-model="search[k.prop]"
+                    :placeholder="k.label" size="small" style="width:180px" clearable
+                    @keyup.enter="load"></el-input>
+          <el-button type="primary" size="small" @click="query.current=1;load()">查询</el-button>
+          <el-button size="small" @click="resetSearch">重置</el-button>
+          <div class="spacer"></div>
+          <el-button type="primary" size="small" @click="openAdd">新增</el-button>
+        </div>
+        <el-table :data="rows" size="small" border v-loading="loading">
+          <el-table-column prop="id" label="ID" width="60"></el-table-column>
+          <el-table-column v-for="c in columns" :key="c.prop" :prop="c.prop" :label="c.label"
+                           :width="c.width" :min-width="c.minWidth" :show-overflow-tooltip="true">
+            <template #default="sc">
+              <span v-if="!c.render">{{ sc.row[c.prop] }}</span>
+              <span v-else>{{ c.render(sc.row) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="sc">
+              <span class="link-btn" @click="openEdit(sc.row)">编辑</span>
+              <span class="link-btn danger" @click="remove(sc.row)">删除</span>
+              <slot name="ops" :row="sc.row"></slot>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="table-pager">
+          <el-pagination background small layout="total, prev, pager, next, sizes"
+                         :total="total" v-model:current-page="query.current"
+                         v-model:page-size="query.size"
+                         :page-sizes="[10,20,50]"
+                         @current-change="load" @size-change="load"></el-pagination>
+        </div>
+      </div>
+
+      <el-dialog v-model="dialogVisible" :title="formTitle" width="560px" append-to-body>
+        <el-form :model="form" label-width="100px" class="dialog-form">
+          <el-form-item v-for="it in formItems" :key="it.prop" :label="it.label">
+            <el-input v-if="!it.type" v-model="form[it.prop]" :placeholder="it.placeholder"></el-input>
+            <el-input-number v-else-if="it.type==='number'" v-model="form[it.prop]" controls-position="right"></el-input-number>
+            <el-input v-else-if="it.type==='textarea'" v-model="form[it.prop]" type="textarea" :rows="3"></el-input>
+            <el-select v-else-if="it.type==='select'" v-model="form[it.prop]" :placeholder="it.placeholder" style="width:100%">
+              <el-option v-for="o in it.options" :key="o.value" :label="o.label" :value="o.value"></el-option>
+            </el-select>
+            <el-switch v-else-if="it.type==='switch'" v-model="form[it.prop]" :active-value="1" :inactive-value="0"></el-switch>
+            <el-time-picker v-else-if="it.type==='time'" v-model="form[it.prop]" value-format="HH:mm:ss"></el-time-picker>
+            <el-date-picker v-else-if="it.type==='date'" v-model="form[it.prop]" type="date" value-format="YYYY-MM-DD"></el-date-picker>
+            <el-date-picker v-else-if="it.type==='datetime'" v-model="form[it.prop]" type="datetime" value-format="YYYY-MM-DD HH:mm:ss"></el-date-picker>
+            <el-upload v-else-if="it.type==='upload'" :action="'/api/file/upload'" :show-file-list="false"
+                       :on-success="(res)=>{ if(res.code===200) form[it.prop]=res.data }" accept="image/css,image/png,image/jpeg,image/gif">
+              <img v-if="form[it.prop]" :src="form[it.prop]" style="max-width:180px;max-height:120px;display:block;border:1px solid #dcdfe6;border-radius:2px;">
+              <el-button v-else size="small">点击上传</el-button>
+            </el-upload>
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="dialogVisible=false">取 消</el-button>
+          <el-button type="primary" @click="save">保 存</el-button>
+        </template>
+      </el-dialog>
+    `
+  });
+}
+
+/* ========== 各模块组件 ========== */
+
+/* 用户管理（特殊：含重置密码、启停、分配角色） */
+const SysUserComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const search = reactive({ keyword: '' });
+    const dialogVisible = ref(false); const formTitle = ref('');
+    const form = reactive({});
+    const roles = ref([]);
+    const loading = ref(false);
+
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams();
+        p.set('current', query.current); p.set('size', query.size);
+        if (search.keyword) p.set('keyword', search.keyword);
+        // 教师登录时只看学生
+        const me = JSON.parse(localStorage.getItem('user') || '{}');
+        const myRoles = me.roles || [];
+        if (myRoles.includes('TEACHER') && !myRoles.includes('ADMIN')) {
+          p.set('userType', '1');
+        }
+        const data = await http('/api/system/user/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    async function loadRoles() {
+      roles.value = await http('/api/system/role/list');
+    }
+    function openAdd() {
+      formTitle.value = '新增用户';
+      Object.keys(form).forEach(k => delete form[k]);
+      Object.assign(form, { userType: 1, status: 1, creditScore: 100, roleIds: [] });
+      dialogVisible.value = true;
+    }
+    async function openEdit(row) {
+      formTitle.value = '编辑用户';
+      Object.keys(form).forEach(k => delete form[k]);
+      const detail = await http('/api/system/user/' + row.id);
+      Object.assign(form, detail);
+      if (!form.roleIds) form.roleIds = [];
+      dialogVisible.value = true;
+    }
+    async function save() {
+      if (form.id) {
+        await http('/api/system/user', { method: 'PUT', body: form });
+      } else {
+        await http('/api/system/user', { method: 'POST', body: form });
+      }
+      ElMessage.success('保存成功'); dialogVisible.value = false; load();
+    }
+    async function remove(row) {
+      await ElMessageBox.confirm('确认删除用户 ' + row.realName + '？', '提示', { type: 'warning' });
+      await http('/api/system/user/' + row.id, { method: 'DELETE' });
+      ElMessage.success('删除成功'); load();
+    }
+    async function resetPwd(row) {
+      const { value } = await ElMessageBox.prompt('请输入新密码', '重置密码', { inputValue: '123456' });
+      await http('/api/system/user/reset-password?id=' + row.id + '&newPassword=' + encodeURIComponent(value), { method: 'POST' });
+      ElMessage.success('重置成功');
+    }
+    async function toggleStatus(row) {
+      const s = row.status === 1 ? 0 : 1;
+      await http('/api/system/user/status?id=' + row.id + '&status=' + s, { method: 'PUT' });
+      ElMessage.success('操作成功'); load();
+    }
+    onMounted(() => { load(); loadRoles(); });
+    const userTypeMap = { 1: '学生', 2: '教师', 3: '管理员' };
+    return { rows, total, query, search, loading, dialogVisible, formTitle, form, roles,
+             load, openAdd, openEdit, save, remove, resetPwd, toggleStatus, userTypeMap,
+             resetSearch: () => { search.keyword=''; query.current=1; load(); } };
+  },
+  template: `
+    <div class="card">
+      <div class="toolbar">
+        <el-input v-model="search.keyword" placeholder="用户名 / 姓名" size="small" style="width:200px" clearable @keyup.enter="load"></el-input>
+        <el-button type="primary" size="small" @click="query.current=1;load()">查询</el-button>
+        <el-button size="small" @click="resetSearch">重置</el-button>
+        <div class="spacer"></div>
+        <el-button type="primary" size="small" @click="openAdd">新增用户</el-button>
+      </div>
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column prop="username" label="登录名" width="120"></el-table-column>
+        <el-table-column prop="realName" label="姓名" width="100"></el-table-column>
+        <el-table-column prop="studentNo" label="学号/工号" width="120"></el-table-column>
+        <el-table-column label="类型" width="80">
+          <template #default="sc">{{ userTypeMap[sc.row.userType] }}</template>
+        </el-table-column>
+        <el-table-column prop="college" label="学院" width="120"></el-table-column>
+        <el-table-column prop="creditScore" label="信用分" width="80"></el-table-column>
+        <el-table-column label="状态" width="80">
+          <template #default="sc">
+            <el-tag :type="sc.row.status===1?'success':'danger'" size="small">{{ sc.row.status===1?'正常':'禁用' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="lastLoginAt" label="最后登录" width="160"></el-table-column>
+        <el-table-column label="操作" width="260" fixed="right">
+          <template #default="sc">
+            <span class="link-btn" @click="openEdit(sc.row)">编辑</span>
+            <span class="link-btn" @click="resetPwd(sc.row)">重置密码</span>
+            <span class="link-btn" @click="toggleStatus(sc.row)">{{ sc.row.status===1?'禁用':'启用' }}</span>
+            <span class="link-btn danger" @click="remove(sc.row)">删除</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next, sizes"
+                       :total="total" v-model:current-page="query.current" v-model:page-size="query.size"
+                       :page-sizes="[10,20,50]" @current-change="load" @size-change="load"></el-pagination>
+      </div>
+    </div>
+    <el-dialog v-model="dialogVisible" :title="formTitle" width="600px" append-to-body>
+      <el-form :model="form" label-width="100px" class="dialog-form">
+        <el-form-item label="登录名"><el-input v-model="form.username"></el-input></el-form-item>
+        <el-form-item label="姓名"><el-input v-model="form.realName"></el-input></el-form-item>
+        <el-form-item label="学号/工号"><el-input v-model="form.studentNo"></el-input></el-form-item>
+        <el-form-item label="用户类型">
+          <el-select v-model="form.userType" style="width:100%">
+            <el-option :value="1" label="学生"></el-option>
+            <el-option :value="2" label="教师"></el-option>
+            <el-option :value="3" label="管理员"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="手机号"><el-input v-model="form.phone"></el-input></el-form-item>
+        <el-form-item label="邮箱"><el-input v-model="form.email"></el-input></el-form-item>
+        <el-form-item label="学院"><el-input v-model="form.college"></el-input></el-form-item>
+        <el-form-item label="专业"><el-input v-model="form.major"></el-input></el-form-item>
+        <el-form-item label="班级"><el-input v-model="form.className"></el-input></el-form-item>
+        <el-form-item label="头像">
+          <el-upload :action="'/api/file/upload'" :show-file-list="false"
+                     :on-success="(res)=>{ if(res.code===200) form.avatarUrl=res.data }" accept="image/*">
+            <img v-if="form.avatarUrl" :src="form.avatarUrl" style="width:60px;height:60px;border-radius:50%;object-fit:cover;display:block;">
+            <el-button v-else size="small">上传头像</el-button>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="信用分"><el-input-number v-model="form.creditScore" :min="0" :max="200"></el-input-number></el-form-item>
+        <el-form-item label="状态"><el-switch v-model="form.status" :active-value="1" :inactive-value="0"></el-switch></el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="form.roleIds" multiple style="width:100%">
+            <el-option v-for="r in roles" :key="r.id" :value="r.id" :label="r.roleName"></el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible=false">取 消</el-button>
+        <el-button type="primary" @click="save">保 存</el-button>
+      </template>
+    </el-dialog>
+  `
+});
+
+/* 角色管理 */
+const SysRoleComp = createCrud({
+  api: '/api/system/role',
+  searchKeys: [{ prop: 'roleName', label: '角色名' }],
+  columns: [
+    { prop: 'roleCode', label: '编码', width: 160 },
+    { prop: 'roleName', label: '名称', width: 140 },
+    { prop: 'description', label: '描述', minWidth: 200 },
+    { prop: 'status', label: '状态', width: 80, render: r => r.status===1?'启用':'禁用' }
+  ],
+  formItems: [
+    { prop: 'roleCode', label: '编码' },
+    { prop: 'roleName', label: '名称' },
+    { prop: 'description', label: '描述', type: 'textarea' },
+    { prop: 'status', label: '状态', type: 'switch', def: 1 }
+  ]
+});
+
+/* 参数配置 */
+const SysConfigComp = createCrud({
+  api: '/api/system/config',
+  searchKeys: [{ prop: 'configKey', label: '配置键' }],
+  columns: [
+    { prop: 'configKey', label: '配置键', width: 200 },
+    { prop: 'configValue', label: '配置值', width: 200 },
+    { prop: 'description', label: '说明', minWidth: 200 },
+    { prop: 'updatedAt', label: '更新时间', width: 170 }
+  ],
+  formItems: [
+    { prop: 'configKey', label: '配置键' },
+    { prop: 'configValue', label: '配置值' },
+    { prop: 'description', label: '说明', type: 'textarea' }
+  ]
+});
+
+/* 操作日志 */
+const OperationLogComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const search = reactive({ module: '' });
+    const loading = ref(false);
+    const detail = reactive({ visible: false, data: {} });
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams();
+        p.set('current', query.current); p.set('size', query.size);
+        if (search.module) p.set('module', search.module);
+        const data = await http('/api/system/operation-log/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    onMounted(load);
+    return { rows, total, query, search, loading, detail, load,
+             showDetail: (row) => { detail.data = row; detail.visible = true; } };
+  },
+  template: `
+    <div class="card">
+      <div class="toolbar">
+        <el-input v-model="search.module" placeholder="模块名（如 用户管理）" size="small" style="width:200px" clearable @keyup.enter="load"></el-input>
+        <el-button type="primary" size="small" @click="query.current=1;load()">查询</el-button>
+      </div>
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column prop="module" label="模块" width="110"></el-table-column>
+        <el-table-column prop="action" label="动作" width="120"></el-table-column>
+        <el-table-column prop="method" label="方法" width="70"></el-table-column>
+        <el-table-column prop="url" label="请求地址" min-width="220" show-overflow-tooltip></el-table-column>
+        <el-table-column prop="ip" label="IP" width="140"></el-table-column>
+        <el-table-column prop="createdAt" label="时间" width="170"></el-table-column>
+        <el-table-column label="操作" width="80">
+          <template #default="sc"><span class="link-btn" @click="showDetail(sc.row)">详情</span></template>
+        </el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next" :total="total"
+                       v-model:current-page="query.current" v-model:page-size="query.size"
+                       @current-change="load"></el-pagination>
+      </div>
+    </div>
+    <el-dialog v-model="detail.visible" title="日志详情" width="720px" append-to-body>
+      <p><b>请求参数：</b></p>
+      <pre style="background:#f5f7fa;padding:10px;max-height:200px;overflow:auto;font-size:12px;">{{ detail.data.params }}</pre>
+      <p><b>返回结果：</b></p>
+      <pre style="background:#f5f7fa;padding:10px;max-height:200px;overflow:auto;font-size:12px;">{{ detail.data.result }}</pre>
+    </el-dialog>
+  `
+});
+
+/* 校区 */
+const CampusComp = createCrud({
+  api: '/api/venue/campus',
+  searchKeys: [{ prop: 'campusName', label: '校区名' }],
+  columns: [
+    { prop: 'campusCode', label: '编码', width: 140 },
+    { prop: 'campusName', label: '名称', width: 160 },
+    { prop: 'address', label: '地址', minWidth: 200 },
+    { prop: 'status', label: '状态', width: 80, render: r => r.status===1?'启用':'停用' }
+  ],
+  formItems: [
+    { prop: 'campusCode', label: '编码' },
+    { prop: 'campusName', label: '名称' },
+    { prop: 'address', label: '地址', type: 'textarea' },
+    { prop: 'status', label: '状态', type: 'switch', def: 1 }
+  ]
+});
+
+/* 楼栋 */
+const BuildingComp = defineComponent({
+  setup() {
+    const base = createCrud({
+      api: '/api/venue/building',
+      searchKeys: [{ prop: 'buildingName', label: '楼栋名' }],
+      columns: [
+        { prop: 'buildingCode', label: '编码', width: 120 },
+        { prop: 'buildingName', label: '名称', width: 160 },
+        { prop: 'campusId', label: '所属校区', width: 120, render: r => (campusMap.value[r.campusId] || r.campusId) },
+        { prop: 'floorCount', label: '楼层数', width: 80 },
+        { prop: 'address', label: '地址', minWidth: 180 },
+        { prop: 'status', label: '状态', width: 80, render: r => r.status===1?'启用':'停用' }
+      ],
+      formItems: [
+        { prop: 'campusId', label: '所属校区', type: 'select', options: [] },
+        { prop: 'buildingCode', label: '编码' },
+        { prop: 'buildingName', label: '名称' },
+        { prop: 'floorCount', label: '楼层数', type: 'number' },
+        { prop: 'address', label: '地址', type: 'textarea' },
+        { prop: 'status', label: '状态', type: 'switch', def: 1 }
+      ]
+    }).setup();
+    const campusMap = ref({});
+    onMounted(async () => {
+      const data = await http('/api/venue/campus/page?current=1&size=1000');
+      campusMap.value = {};
+      (data.records || []).forEach(c => campusMap.value[c.id] = c.campusName);
+      const sel = base.formItems.value.find(i => i.prop === 'campusId');
+      sel.options = (data.records || []).map(c => ({ value: c.id, label: c.campusName }));
+    });
+    return Object.assign(base, { campusMap });
+  },
+  template: createCrudTpl()
+});
+
+/* 自习室 */
+const RoomComp = defineComponent({
+  setup() {
+    const base = createCrud({
+      api: '/api/venue/room',
+      searchKeys: [{ prop: 'roomName', label: '自习室名' }],
+      columns: [
+        { prop: 'roomNo', label: '房间号', width: 100 },
+        { prop: 'roomName', label: '名称', width: 160 },
+        { prop: 'buildingId', label: '楼栋', width: 140, render: r => (buildingMap.value[r.buildingId] || r.buildingId) },
+        { prop: 'floor', label: '楼层', width: 70 },
+        { prop: 'capacity', label: '容量', width: 70 },
+        { prop: 'openTime', label: '开放时间', width: 150, render: r => (r.openTime||'').substring(0,5)+' - '+(r.closeTime||'').substring(0,5) },
+        { prop: 'status', label: '状态', width: 90, render: r => ({1:'开放',0:'关闭',2:'维护'}[r.status]) }
+      ],
+      formItems: [
+        { prop: 'buildingId', label: '所属楼栋', type: 'select', options: [] },
+        { prop: 'roomNo', label: '房间号' },
+        { prop: 'roomName', label: '名称' },
+        { prop: 'floor', label: '楼层', type: 'number' },
+        { prop: 'capacity', label: '座位数', type: 'number' },
+        { prop: 'openTime', label: '开始时间', type: 'time' },
+        { prop: 'closeTime', label: '结束时间', type: 'time' },
+        { prop: 'status', label: '状态', type: 'select', options: [
+          { value: 1, label: '开放' }, { value: 0, label: '关闭' }, { value: 2, label: '维护' }
+        ], def: 1 },
+        { prop: 'imageUrl', label: '封面图', type: 'upload' },
+        { prop: 'description', label: '描述', type: 'textarea' }
+      ]
+    }).setup();
+    const buildingMap = ref({});
+    onMounted(async () => {
+      const data = await http('/api/venue/building/page?current=1&size=1000');
+      buildingMap.value = {};
+      (data.records || []).forEach(b => buildingMap.value[b.id] = b.buildingName);
+      const sel = base.formItems.value.find(i => i.prop === 'buildingId');
+      sel.options = (data.records || []).map(b => ({ value: b.id, label: b.buildingName }));
+    });
+    return Object.assign(base, { buildingMap });
+  },
+  template: createCrudTpl()
+});
+
+/* 座位 */
+const SeatComp = defineComponent({
+  setup() {
+    const base = createCrud({
+      api: '/api/venue/seat',
+      searchKeys: [{ prop: 'seatNo', label: '座位号' }],
+      columns: [
+        { prop: 'seatNo', label: '座位号', width: 120 },
+        { prop: 'roomId', label: '自习室', width: 140, render: r => (roomMap.value[r.roomId] || r.roomId) },
+        { prop: 'rowNo', label: '行', width: 60 },
+        { prop: 'colNo', label: '列', width: 60 },
+        { prop: 'seatType', label: '类型', width: 90, render: r => ({1:'普通',2:'电源',3:'靠窗',4:'研讨'}[r.seatType]) },
+        { prop: 'hasPower', label: '电源', width: 70, render: r => r.hasPower?'有':'无' },
+        { prop: 'hasWindow', label: '靠窗', width: 70, render: r => r.hasWindow?'是':'否' },
+        { prop: 'status', label: '状态', width: 80, render: r => ({1:'可用',0:'维修',2:'停用'}[r.status]) },
+        { prop: 'description', label: '描述', minWidth: 150 }
+      ],
+      formItems: [
+        { prop: 'roomId', label: '自习室', type: 'select', options: [] },
+        { prop: 'seatNo', label: '座位号' },
+        { prop: 'rowNo', label: '行', type: 'number' },
+        { prop: 'colNo', label: '列', type: 'number' },
+        { prop: 'seatType', label: '类型', type: 'select', options: [
+          { value: 1, label: '普通' }, { value: 2, label: '电源' }, { value: 3, label: '靠窗' }, { value: 4, label: '研讨' }
+        ], def: 1 },
+        { prop: 'hasPower', label: '有电源', type: 'switch', def: 0 },
+        { prop: 'hasWindow', label: '靠窗', type: 'switch', def: 0 },
+        { prop: 'status', label: '状态', type: 'select', options: [
+          { value: 1, label: '可用' }, { value: 0, label: '维修' }, { value: 2, label: '停用' }
+        ], def: 1 },
+        { prop: 'description', label: '描述', type: 'textarea' }
+      ]
+    }).setup();
+    const roomMap = ref({});
+    onMounted(async () => {
+      const data = await http('/api/venue/room/page?current=1&size=1000');
+      roomMap.value = {};
+      (data.records || []).forEach(r => roomMap.value[r.id] = r.roomName);
+      const sel = base.formItems.value.find(i => i.prop === 'roomId');
+      sel.options = (data.records || []).map(r => ({ value: r.id, label: r.roomName }));
+    });
+    return Object.assign(base, { roomMap });
+  },
+  template: createCrudTpl()
+});
+
+/* 设备 */
+const DeviceComp = defineComponent({
+  setup() {
+    const base = createCrud({
+      api: '/api/venue/device',
+      searchKeys: [{ prop: 'deviceName', label: '设备名' }],
+      columns: [
+        { prop: 'deviceCode', label: '编码', width: 130 },
+        { prop: 'deviceName', label: '名称', width: 150 },
+        { prop: 'roomId', label: '自习室', width: 140, render: r => (roomMap.value[r.roomId] || r.roomId) },
+        { prop: 'deviceType', label: '类型', width: 90, render: r => ({1:'闸机',2:'扫码器',3:'人脸机'}[r.deviceType]) },
+        { prop: 'status', label: '状态', width: 80, render: r => r.status===1?'启用':'停用' },
+        { prop: 'lastOnlineAt', label: '最后在线', width: 170 }
+      ],
+      formItems: [
+        { prop: 'roomId', label: '自习室', type: 'select', options: [] },
+        { prop: 'deviceCode', label: '编码' },
+        { prop: 'deviceName', label: '名称' },
+        { prop: 'deviceType', label: '类型', type: 'select', options: [
+          { value: 1, label: '闸机' }, { value: 2, label: '扫码器' }, { value: 3, label: '人脸机' }
+        ], def: 1 },
+        { prop: 'status', label: '状态', type: 'switch', def: 1 }
+      ]
+    }).setup();
+    const roomMap = ref({});
+    onMounted(async () => {
+      const data = await http('/api/venue/room/page?current=1&size=1000');
+      roomMap.value = {};
+      (data.records || []).forEach(r => roomMap.value[r.id] = r.roomName);
+      const sel = base.formItems.value.find(i => i.prop === 'roomId');
+      sel.options = (data.records || []).map(r => ({ value: r.id, label: r.roomName }));
+    });
+    return Object.assign(base, { roomMap });
+  },
+  template: createCrudTpl()
+});
+
+/* 预约记录（特殊：含签到/签退/取消操作） */
+const ReservationComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const search = reactive({ status: '', reserveDate: '' });
+    const loading = ref(false);
+    const refMap = ref({});
+    async function loadRefs() {
+      const [users, rooms, seats] = await Promise.all([
+        http('/api/system/user/page?current=1&size=1000'),
+        http('/api/venue/room/page?current=1&size=1000'),
+        http('/api/venue/seat/page?current=1&size=1000')
+      ]);
+      const m = {};
+      (users.records||[]).forEach(u => m['u'+u.id] = u.realName);
+      (rooms.records||[]).forEach(r => m['r'+r.id] = r.roomName);
+      (seats.records||[]).forEach(s => m['s'+s.id] = s.seatNo);
+      refMap.value = m;
+    }
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams();
+        p.set('current', query.current); p.set('size', query.size);
+        if (search.status !== '') p.set('status', search.status);
+        if (search.reserveDate) p.set('reserveDate', search.reserveDate);
+        const data = await http('/api/reservation/reservation/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    async function checkin(row) {
+      await http('/api/reservation/reservation/checkin?reservationId=' + row.id + '&checkinType=3', { method: 'POST' });
+      ElMessage.success('签到成功'); load();
+    }
+    async function checkout(row) {
+      await http('/api/reservation/reservation/checkout?reservationId=' + row.id, { method: 'POST' });
+      ElMessage.success('签退成功'); load();
+    }
+    async function cancel(row) {
+      const { value } = await ElMessageBox.prompt('请输入取消原因', '取消预约', { inputValue: '管理员取消' });
+      await http('/api/reservation/reservation/cancel/' + row.id + '?reason=' + encodeURIComponent(value), { method: 'POST' });
+      ElMessage.success('已取消'); load();
+    }
+    const statusMap = { 0:'待签到', 1:'已签到', 2:'已完成', 3:'已取消', 4:'爽约', 5:'违规取消' };
+    const statusType = { 0:'warning', 1:'primary', 2:'success', 3:'info', 4:'danger', 5:'danger' };
+    onMounted(() => { loadRefs(); load(); });
+    return { rows, total, query, search, loading, refMap, load, checkin, checkout, cancel,
+             statusMap, statusType,
+             resetSearch: () => { search.status=''; search.reserveDate=''; query.current=1; load(); } };
+  },
+  template: `
+    <div class="card">
+      <div class="toolbar">
+        <el-select v-model="search.status" placeholder="状态" size="small" style="width:130px" clearable>
+          <el-option v-for="(v,k) in statusMap" :key="k" :value="Number(k)" :label="v"></el-option>
+        </el-select>
+        <el-date-picker v-model="search.reserveDate" type="date" placeholder="预约日期" size="small" value-format="YYYY-MM-DD" style="width:160px"></el-date-picker>
+        <el-button type="primary" size="small" @click="query.current=1;load()">查询</el-button>
+        <el-button size="small" @click="resetSearch">重置</el-button>
+      </div>
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="reservationNo" label="预约编号" width="200"></el-table-column>
+        <el-table-column label="用户" width="100"><template #default="sc">{{ refMap['u'+sc.row.userId] || sc.row.userId }}</template></el-table-column>
+        <el-table-column label="自习室" width="120"><template #default="sc">{{ refMap['r'+sc.row.roomId] || sc.row.roomId }}</template></el-table-column>
+        <el-table-column label="座位" width="110"><template #default="sc">{{ refMap['s'+sc.row.seatId] || sc.row.seatId }}</template></el-table-column>
+        <el-table-column prop="reserveDate" label="日期" width="110"></el-table-column>
+        <el-table-column label="时段" width="130"><template #default="sc">{{ (sc.row.startTime||'').substring(0,5) }}-{{ (sc.row.endTime||'').substring(0,5) }}</template></el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="sc"><el-tag :type="statusType[sc.row.status]" size="small">{{ statusMap[sc.row.status] }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="checkinCode" label="签到码" width="110"></el-table-column>
+        <el-table-column prop="createdAt" label="创建时间" width="160"></el-table-column>
+        <el-table-column label="操作" width="220" fixed="right">
+          <template #default="sc">
+            <span v-if="sc.row.status===0" class="link-btn" @click="checkin(sc.row)">签到</span>
+            <span v-if="sc.row.status===1" class="link-btn" @click="checkout(sc.row)">签退</span>
+            <span v-if="sc.row.status===0" class="link-btn danger" @click="cancel(sc.row)">取消</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next" :total="total"
+                       v-model:current-page="query.current" v-model:page-size="query.size"
+                       @current-change="load"></el-pagination>
+      </div>
+    </div>
+  `
+});
+
+/* 预约规则 */
+const RuleComp = createCrud({
+  api: '/api/reservation/rule',
+  searchKeys: [],
+  columns: [
+    { prop: 'ruleName', label: '规则名', width: 160 },
+    { prop: 'ruleCode', label: '编码', width: 120 },
+    { prop: 'maxReservePerDay', label: '每日上限', width: 90 },
+    { prop: 'maxReserveDuration', label: '单次最长(分)', width: 110 },
+    { prop: 'advanceReserveDays', label: '可提前(天)', width: 100 },
+    { prop: 'cancelDeadlineMinutes', label: '取消截止(分)', width: 110 },
+    { prop: 'creditThreshold', label: '信用阈值', width: 90 },
+    { prop: 'status', label: '状态', width: 80, render: r => r.status===1?'启用':'停用' }
+  ],
+  formItems: [
+    { prop: 'ruleName', label: '规则名' },
+    { prop: 'ruleCode', label: '编码' },
+    { prop: 'maxReservePerDay', label: '每日上限', type: 'number' },
+    { prop: 'maxReserveDuration', label: '单次最长(分)', type: 'number' },
+    { prop: 'advanceReserveDays', label: '可提前(天)', type: 'number' },
+    { prop: 'cancelDeadlineMinutes', label: '取消截止(分)', type: 'number' },
+    { prop: 'checkinStartMinutes', label: '签到提前(分)', type: 'number' },
+    { prop: 'checkinEndMinutes', label: '签到延后(分)', type: 'number' },
+    { prop: 'creditThreshold', label: '信用阈值', type: 'number' },
+    { prop: 'status', label: '状态', type: 'switch', def: 1 }
+  ]
+});
+
+/* 时段 */
+const TimeSlotComp = createCrud({
+  api: '/api/reservation/time-slot',
+  searchKeys: [],
+  columns: [
+    { prop: 'slotName', label: '时段名', width: 120 },
+    { prop: 'startTime', label: '开始', width: 100, render: r => (r.startTime||'').substring(0,5) },
+    { prop: 'endTime', label: '结束', width: 100, render: r => (r.endTime||'').substring(0,5) },
+    { prop: 'maxReserve', label: '最大人数', width: 90 },
+    { prop: 'status', label: '状态', width: 80, render: r => r.status===1?'启用':'停用' }
+  ],
+  formItems: [
+    { prop: 'slotName', label: '时段名' },
+    { prop: 'startTime', label: '开始时间', type: 'time' },
+    { prop: 'endTime', label: '结束时间', type: 'time' },
+    { prop: 'maxReserve', label: '最大人数', type: 'number' },
+    { prop: 'status', label: '状态', type: 'switch', def: 1 }
+  ]
+});
+
+/* 签到记录 */
+const CheckinComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const loading = ref(false);
+    const refMap = ref({});
+    async function loadRefs() {
+      const users = await http('/api/system/user/page?current=1&size=1000');
+      const m = {};
+      (users.records||[]).forEach(u => m['u'+u.id] = u.realName);
+      refMap.value = m;
+    }
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams();
+        p.set('current', query.current); p.set('size', query.size);
+        const data = await http('/api/reservation/checkin/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    const typeMap = { 1:'扫码', 2:'人脸', 3:'手动' };
+    onMounted(() => { loadRefs(); load(); });
+    return { rows, total, query, loading, refMap, load, typeMap };
+  },
+  template: `
+    <div class="card">
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column label="用户" width="100"><template #default="sc">{{ refMap['u'+sc.row.userId] || sc.row.userId }}</template></el-table-column>
+        <el-table-column prop="reservationId" label="预约ID" width="90"></el-table-column>
+        <el-table-column label="方式" width="90"><template #default="sc">{{ typeMap[sc.row.checkinType] }}</template></el-table-column>
+        <el-table-column prop="checkinTime" label="签到时间" width="170"></el-table-column>
+        <el-table-column prop="checkoutTime" label="签退时间" width="170"></el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="150"></el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next" :total="total"
+                       v-model:current-page="query.current" v-model:page-size="query.size"
+                       @current-change="load"></el-pagination>
+      </div>
+    </div>
+  `
+});
+
+/* 黑名单 */
+const BlacklistComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const loading = ref(false);
+    const dialogVisible = ref(false);
+    const form = reactive({});
+    const userMap = ref({});
+    async function loadUsers() {
+      const data = await http('/api/system/user/page?current=1&size=1000');
+      userMap.value = {};
+      (data.records||[]).forEach(u => userMap.value[u.id] = u.realName);
+    }
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams(); p.set('current', query.current); p.set('size', query.size);
+        const data = await http('/api/credit/blacklist/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    function openAdd() {
+      Object.keys(form).forEach(k => delete form[k]);
+      Object.assign(form, { status: 1 });
+      dialogVisible.value = true;
+    }
+    async function save() {
+      await http('/api/credit/blacklist', { method: 'POST', body: form });
+      ElMessage.success('保存成功'); dialogVisible.value = false; load();
+    }
+    async function remove(row) {
+      await ElMessageBox.confirm('确认移出黑名单？', '提示', { type: 'warning' });
+      await http('/api/credit/blacklist/' + row.id, { method: 'DELETE' });
+      ElMessage.success('已移除'); load();
+    }
+    onMounted(() => { load(); loadUsers(); });
+    return { rows, total, query, loading, dialogVisible, form, userMap, load, openAdd, save, remove };
+  },
+  template: `
+    <div class="card">
+      <div class="toolbar">
+        <div class="spacer"></div>
+        <el-button type="primary" size="small" @click="openAdd">加入黑名单</el-button>
+      </div>
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column label="用户" width="100"><template #default="sc">{{ userMap[sc.row.userId] || sc.row.userId }}</template></el-table-column>
+        <el-table-column prop="reason" label="原因" min-width="200"></el-table-column>
+        <el-table-column prop="startTime" label="开始时间" width="170"></el-table-column>
+        <el-table-column prop="endTime" label="结束时间" width="170"></el-table-column>
+        <el-table-column label="状态" width="80">
+          <template #default="sc"><el-tag :type="sc.row.status===1?'danger':'info'" size="small">{{ sc.row.status===1?'生效':'失效' }}</el-tag></template>
+        </el-table-column>
+        <el-table-column label="操作" width="90">
+          <template #default="sc"><span class="link-btn danger" @click="remove(sc.row)">移除</span></template>
+        </el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next" :total="total"
+                       v-model:current-page="query.current" v-model:page-size="query.size"
+                       @current-change="load"></el-pagination>
+      </div>
+    </div>
+    <el-dialog v-model="dialogVisible" title="加入黑名单" width="500px" append-to-body>
+      <el-form :model="form" label-width="100px" class="dialog-form">
+        <el-form-item label="用户ID"><el-input v-model.number="form.userId"></el-input></el-form-item>
+        <el-form-item label="原因"><el-input v-model="form.reason" type="textarea" :rows="3"></el-input></el-form-item>
+        <el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss"></el-date-picker></el-form-item>
+        <el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss"></el-date-picker></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible=false">取 消</el-button>
+        <el-button type="primary" @click="save">保 存</el-button>
+      </template>
+    </el-dialog>
+  `
+});
+
+/* 违规记录 */
+const ViolationComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const loading = ref(false);
+    const userMap = ref({});
+    async function loadUsers() {
+      const data = await http('/api/system/user/page?current=1&size=1000');
+      userMap.value = {};
+      (data.records||[]).forEach(u => userMap.value[u.id] = u.realName);
+    }
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams(); p.set('current', query.current); p.set('size', query.size);
+        const data = await http('/api/credit/violation/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    const vType = { 1:'爽约', 2:'超时', 3:'代签', 4:'占座', 5:'其他' };
+    const pType = { 1:'警告', 2:'扣分', 3:'禁用', 4:'黑名单' };
+    onMounted(() => { load(); loadUsers(); });
+    return { rows, total, query, loading, userMap, load, vType, pType };
+  },
+  template: `
+    <div class="card">
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column label="用户" width="100"><template #default="sc">{{ userMap[sc.row.userId] || sc.row.userId }}</template></el-table-column>
+        <el-table-column label="类型" width="90"><template #default="sc">{{ vType[sc.row.violationType] }}</template></el-table-column>
+        <el-table-column prop="description" label="描述" min-width="180"></el-table-column>
+        <el-table-column prop="deductScore" label="扣分" width="80"></el-table-column>
+        <el-table-column label="处罚" width="90"><template #default="sc">{{ pType[sc.row.punishType] }}</template></el-table-column>
+        <el-table-column label="状态" width="80">
+          <template #default="sc"><el-tag :type="sc.row.status===1?'success':'warning'" size="small">{{ sc.row.status===1?'已处理':'待处理' }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="时间" width="160"></el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next" :total="total"
+                       v-model:current-page="query.current" v-model:page-size="query.size"
+                       @current-change="load"></el-pagination>
+      </div>
+    </div>
+  `
+});
+
+/* 信用流水 */
+const CreditLogComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const loading = ref(false);
+    const userMap = ref({});
+    async function loadUsers() {
+      const data = await http('/api/system/user/page?current=1&size=1000');
+      userMap.value = {};
+      (data.records||[]).forEach(u => userMap.value[u.id] = u.realName);
+    }
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams(); p.set('current', query.current); p.set('size', query.size);
+        const data = await http('/api/credit/log/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    onMounted(() => { load(); loadUsers(); });
+    return { rows, total, query, loading, userMap, load };
+  },
+  template: `
+    <div class="card">
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column label="用户" width="100"><template #default="sc">{{ userMap[sc.row.userId] || sc.row.userId }}</template></el-table-column>
+        <el-table-column label="变动" width="90">
+          <template #default="sc">
+            <span :style="{color: sc.row.changeScore>=0?'#67c23a':'#f56c6c'}">{{ sc.row.changeScore>=0?'+':'' }}{{ sc.row.changeScore }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="beforeScore" label="变动前" width="90"></el-table-column>
+        <el-table-column prop="afterScore" label="变动后" width="90"></el-table-column>
+        <el-table-column prop="reason" label="原因" min-width="180"></el-table-column>
+        <el-table-column prop="createdAt" label="时间" width="160"></el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next" :total="total"
+                       v-model:current-page="query.current" v-model:page-size="query.size"
+                       @current-change="load"></el-pagination>
+      </div>
+    </div>
+  `
+});
+
+/* 消息通知 */
+const NotificationComp = createCrud({
+  api: '/api/notice/notification',
+  searchKeys: [],
+  columns: [
+    { prop: 'userId', label: '接收人', width: 90 },
+    { prop: 'title', label: '标题', width: 180 },
+    { prop: 'content', label: '内容', minWidth: 200 },
+    { prop: 'type', label: '类型', width: 90, render: r => ({1:'预约',2:'签到',3:'违规',4:'系统'}[r.type]) },
+    { prop: 'isRead', label: '是否已读', width: 90, render: r => r.isRead?'已读':'未读' },
+    { prop: 'createdAt', label: '时间', width: 160 }
+  ],
+  formItems: [
+    { prop: 'userId', label: '接收人ID', type: 'number' },
+    { prop: 'title', label: '标题' },
+    { prop: 'content', label: '内容', type: 'textarea' },
+    { prop: 'type', label: '类型', type: 'select', options: [
+      { value: 1, label: '预约' }, { value: 2, label: '签到' }, { value: 3, label: '违规' }, { value: 4, label: '系统' }
+    ], def: 4 }
+  ]
+});
+
+/* 反馈管理 */
+const FeedbackComp = defineComponent({
+  setup() {
+    const rows = ref([]); const total = ref(0);
+    const query = reactive({ current: 1, size: 10 });
+    const loading = ref(false);
+    const dialogVisible = ref(false);
+    const form = reactive({});
+    const userMap = ref({});
+    async function loadUsers() {
+      const data = await http('/api/system/user/page?current=1&size=1000');
+      userMap.value = {};
+      (data.records||[]).forEach(u => userMap.value[u.id] = u.realName);
+    }
+    async function load() {
+      loading.value = true;
+      try {
+        const p = new URLSearchParams(); p.set('current', query.current); p.set('size', query.size);
+        const data = await http('/api/notice/feedback/page?' + p.toString());
+        rows.value = data.records || []; total.value = data.total || 0;
+      } finally { loading.value = false; }
+    }
+    function openReply(row) {
+      Object.keys(form).forEach(k => delete form[k]);
+      Object.assign(form, row);
+      dialogVisible.value = true;
+    }
+    async function save() {
+      await http('/api/notice/feedback', { method: 'PUT', body: form });
+      ElMessage.success('回复成功'); dialogVisible.value = false; load();
+    }
+    const typeMap = { 1:'报修', 2:'建议', 3:'投诉' };
+    const statusMap = { 0:'待处理', 1:'处理中', 2:'已处理' };
+    const statusType = { 0:'danger', 1:'warning', 2:'success' };
+    onMounted(() => { load(); loadUsers(); });
+    return { rows, total, query, loading, dialogVisible, form, userMap, load, openReply, save,
+             typeMap, statusMap, statusType };
+  },
+  template: `
+    <div class="card">
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column label="用户" width="100"><template #default="sc">{{ userMap[sc.row.userId] || sc.row.userId }}</template></el-table-column>
+        <el-table-column label="类型" width="80"><template #default="sc">{{ typeMap[sc.row.type] }}</template></el-table-column>
+        <el-table-column prop="content" label="内容" min-width="220" show-overflow-tooltip></el-table-column>
+        <el-table-column prop="reply" label="回复" min-width="180" show-overflow-tooltip></el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="sc"><el-tag :type="statusType[sc.row.status]" size="small">{{ statusMap[sc.row.status] }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="提交时间" width="160"></el-table-column>
+        <el-table-column label="操作" width="90">
+          <template #default="sc"><span class="link-btn" @click="openReply(sc.row)">处理</span></template>
+        </el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next" :total="total"
+                       v-model:current-page="query.current" v-model:page-size="query.size"
+                       @current-change="load"></el-pagination>
+      </div>
+    </div>
+    <el-dialog v-model="dialogVisible" title="处理反馈" width="560px" append-to-body>
+      <el-form :model="form" label-width="100px" class="dialog-form">
+        <el-form-item label="反馈内容"><div style="color:#606266;">{{ form.content }}</div></el-form-item>
+        <el-form-item label="回复"><el-input v-model="form.reply" type="textarea" :rows="3"></el-input></el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="form.status">
+            <el-option :value="0" label="待处理"></el-option>
+            <el-option :value="1" label="处理中"></el-option>
+            <el-option :value="2" label="已处理"></el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible=false">取 消</el-button>
+        <el-button type="primary" @click="save">保 存</el-button>
+      </template>
+    </el-dialog>
+  `
+});
+
+/* 通用 CRUD 模板字符串（给嵌套组件用） */
+function createCrudTpl() {
+  return `
+    <div class="card">
+      <div class="toolbar">
+        <el-input v-for="k in searchKeys" :key="k.prop" v-model="search[k.prop]"
+                  :placeholder="k.label" size="small" style="width:180px" clearable
+                  @keyup.enter="load"></el-input>
+        <el-button type="primary" size="small" @click="query.current=1;load()">查询</el-button>
+        <el-button size="small" @click="resetSearch">重置</el-button>
+        <div class="spacer"></div>
+        <el-button type="primary" size="small" @click="openAdd">新增</el-button>
+      </div>
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="id" label="ID" width="60"></el-table-column>
+        <el-table-column v-for="c in columns" :key="c.prop" :prop="c.prop" :label="c.label"
+                         :width="c.width" :min-width="c.minWidth" show-overflow-tooltip>
+          <template #default="sc">
+            <span v-if="!c.render">{{ sc.row[c.prop] }}</span>
+            <span v-else>{{ c.render(sc.row) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" fixed="right">
+          <template #default="sc">
+            <span class="link-btn" @click="openEdit(sc.row)">编辑</span>
+            <span class="link-btn danger" @click="remove(sc.row)">删除</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="table-pager">
+        <el-pagination background small layout="total, prev, pager, next, sizes"
+                       :total="total" v-model:current-page="query.current" v-model:page-size="query.size"
+                       :page-sizes="[10,20,50]" @current-change="load" @size-change="load"></el-pagination>
+      </div>
+    </div>
+    <el-dialog v-model="dialogVisible" :title="formTitle" width="560px" append-to-body>
+      <el-form :model="form" label-width="110px" class="dialog-form">
+        <el-form-item v-for="it in formItems" :key="it.prop" :label="it.label">
+          <el-input v-if="!it.type" v-model="form[it.prop]"></el-input>
+          <el-input-number v-else-if="it.type==='number'" v-model="form[it.prop]" controls-position="right"></el-input-number>
+          <el-input v-else-if="it.type==='textarea'" v-model="form[it.prop]" type="textarea" :rows="3"></el-input>
+          <el-select v-else-if="it.type==='select'" v-model="form[it.prop]" style="width:100%">
+            <el-option v-for="o in it.options" :key="o.value" :label="o.label" :value="o.value"></el-option>
+          </el-select>
+          <el-switch v-else-if="it.type==='switch'" v-model="form[it.prop]" :active-value="1" :inactive-value="0"></el-switch>
+          <el-time-picker v-else-if="it.type==='time'" v-model="form[it.prop]" value-format="HH:mm:ss"></el-time-picker>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible=false">取 消</el-button>
+        <el-button type="primary" @click="save">保 存</el-button>
+      </template>
+    </el-dialog>
+  `;
+}
+
+/* ========== 学生端组件 ========== */
+
+/* 我的预约 */
+const StudentMyComp = defineComponent({
+  setup() {
+    const rows = ref([]);
+    const loading = ref(false);
+    const refMap = ref({});
+    const statusMap = { 0:'待签到', 1:'已签到', 2:'已完成', 3:'已取消', 4:'爽约', 5:'违规取消' };
+    const statusType = { 0:'warning', 1:'primary', 2:'success', 3:'info', 4:'danger', 5:'danger' };
+
+    function currentUserId() {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      return u.id;
+    }
+    async function loadRefs() {
+      const [rooms, seats] = await Promise.all([
+        http('/api/venue/room/page?current=1&size=1000'),
+        http('/api/venue/seat/page?current=1&size=1000')
+      ]);
+      const m = {};
+      (rooms.records||[]).forEach(r => m['r'+r.id] = r.roomName);
+      (seats.records||[]).forEach(s => m['s'+s.id] = s.seatNo);
+      refMap.value = m;
+    }
+    async function load() {
+      loading.value = true;
+      try {
+        const data = await http('/api/reservation/reservation/my?userId=' + currentUserId());
+        rows.value = data || [];
+      } finally { loading.value = false; }
+    }
+    async function refreshUser() {
+      const uid = currentUserId();
+      if (!uid) return;
+      try {
+        const u = await http('/api/system/user/' + uid);
+        const old = JSON.parse(localStorage.getItem('user') || '{}');
+        const merged = Object.assign({}, old, u);
+        localStorage.setItem('user', JSON.stringify(merged));
+      } catch(e) {}
+    }
+    async function checkin(row) {
+      await http('/api/reservation/reservation/checkin?reservationId=' + row.id + '&checkinType=3', { method: 'POST' });
+      ElMessage.success('签到成功，信用分+1'); load(); refreshUser();
+    }
+    async function checkout(row) {
+      await http('/api/reservation/reservation/checkout?reservationId=' + row.id, { method: 'POST' });
+      ElMessage.success('签退成功，信用分+1'); load(); refreshUser();
+    }
+    async function cancel(row) {
+      const { value } = await ElMessageBox.prompt('请输入取消原因', '取消预约', { inputValue: '个人原因' });
+      await http('/api/reservation/reservation/cancel/' + row.id + '?reason=' + encodeURIComponent(value), { method: 'POST' });
+      ElMessage.success('已取消'); load(); refreshUser();
+    }
+    onMounted(() => { loadRefs(); load(); });
+    return { rows, loading, refMap, statusMap, statusType, checkin, checkout, cancel, load };
+  },
+  template: `
+    <div class="card">
+      <div class="toolbar">
+        <span style="color:#606266;">我的预约记录</span>
+        <div class="spacer"></div>
+        <el-button size="small" @click="load">刷新</el-button>
+      </div>
+      <el-table :data="rows" size="small" border v-loading="loading">
+        <el-table-column prop="reservationNo" label="预约编号" width="200"></el-table-column>
+        <el-table-column label="自习室" width="130"><template #default="sc">{{ refMap['r'+sc.row.roomId] || sc.row.roomId }}</template></el-table-column>
+        <el-table-column label="座位" width="110"><template #default="sc">{{ refMap['s'+sc.row.seatId] || sc.row.seatId }}</template></el-table-column>
+        <el-table-column prop="reserveDate" label="日期" width="110"></el-table-column>
+        <el-table-column label="时段" width="130"><template #default="sc">{{ (sc.row.startTime||'').substring(0,5) }}-{{ (sc.row.endTime||'').substring(0,5) }}</template></el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="sc"><el-tag :type="statusType[sc.row.status]" size="small">{{ statusMap[sc.row.status] }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="checkinCode" label="签到码" width="110"></el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="sc">
+            <span v-if="sc.row.status===0" class="link-btn" @click="checkin(sc.row)">签到</span>
+            <span v-if="sc.row.status===1" class="link-btn" @click="checkout(sc.row)">签退</span>
+            <span v-if="sc.row.status===0" class="link-btn danger" @click="cancel(sc.row)">取消</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+  `
+});
+
+/* 选座预约 */
+const StudentPickComp = defineComponent({
+  setup() {
+    const rooms = ref([]);
+    const slots = ref([]);
+    const seats = ref([]);
+    const occupied = ref([]);
+    const form = reactive({ roomId: null, reserveDate: '', slotId: null, seatFilter: 'all' });
+    const loading = ref(false);
+    const selectedSeat = ref(null);
+    const dialogVisible = ref(false);
+
+    function todayPlus(n) {
+      const d = new Date(); d.setDate(d.getDate() + n);
+      return d.toISOString().substring(0, 10);
+    }
+    function currentUserId() {
+      return JSON.parse(localStorage.getItem('user') || '{}').id;
+    }
+    async function loadRooms() {
+      const data = await http('/api/venue/room/page?current=1&size=1000');
+      rooms.value = (data.records || []).filter(r => r.status === 1);
+    }
+    async function loadSlots() {
+      const data = await http('/api/reservation/time-slot/page?current=1&size=1000');
+      slots.value = (data.records || []).filter(s => s.status === 1);
+    }
+    async function loadSeatsAndOccupied() {
+      if (!form.roomId || !form.reserveDate || !form.slotId) return;
+      loading.value = true;
+      try {
+        const [seatData, occData] = await Promise.all([
+          http('/api/venue/seat/page?current=1&size=500&roomId=' + form.roomId),
+          http('/api/reservation/reservation/occupied?roomId=' + form.roomId + '&date=' + form.reserveDate + '&slotId=' + form.slotId)
+        ]);
+        seats.value = seatData.records || [];
+        occupied.value = occData || [];
+        selectedSeat.value = null;
+      } finally { loading.value = false; }
+    }
+    function isOccupied(seat) {
+      return occupied.value.some(o => o.seatId === seat.id && (o.status === 0 || o.status === 1 || o.status === 2));
+    }
+    // 按筛选条件过滤座位
+    const filteredSeats = computed(() => {
+      if (form.seatFilter === 'power') return seats.value.filter(s => s.hasPower === 1 || s.seatType === 2);
+      if (form.seatFilter === 'window') return seats.value.filter(s => s.hasWindow === 1 || s.seatType === 3);
+      return seats.value;
+    });
+    // 按列分组：左右两列，中间过道
+    const seatColumns = computed(() => {
+      const m = {};
+      filteredSeats.value.forEach(s => {
+        const c = s.colNo || 1;
+        if (!m[c]) m[c] = [];
+        m[c].push(s);
+      });
+      Object.values(m).forEach(col => col.sort((a,b) => (a.rowNo||1)-(b.rowNo||1)));
+      return Object.keys(m).sort().map(k => m[k]);
+    });
+    const freeCount = computed(() => filteredSeats.value.filter(s => s.status===1 && !isOccupied(s)).length);
+    const occupiedCount = computed(() => filteredSeats.value.filter(s => isOccupied(s) || s.status!==1).length);
+    function seatStyle(seat) {
+      if (seat.status !== 1) return 'background:#dcdfe6;color:#909399;cursor:not-allowed;border-color:#dcdfe6;box-shadow:none;';
+      if (isOccupied(seat)) return 'background:#f56c6c;color:#fff;cursor:not-allowed;border-color:#f56c6c;box-shadow:none;';
+      if (selectedSeat.value && selectedSeat.value.id === seat.id) return 'background:#409eff;color:#fff;border:2px solid #337ecc;cursor:pointer;box-shadow:0 4px 12px rgba(64,158,255,0.4);transform:translateY(-2px);';
+      return 'background:#67c23a;color:#fff;cursor:pointer;border-color:#67c23a;box-shadow:0 2px 4px rgba(103,194,58,0.3);';
+    }
+    function clickSeat(seat) {
+      if (seat.status !== 1 || isOccupied(seat)) return;
+      selectedSeat.value = selectedSeat.value && selectedSeat.value.id === seat.id ? null : seat;
+    }
+    function openConfirm() {
+      if (!selectedSeat.value) { ElMessage.warning('请先选择一个座位'); return; }
+      dialogVisible.value = true;
+    }
+    async function confirmReserve() {
+      await http('/api/reservation/reservation', { method: 'POST', body: {
+        userId: currentUserId(),
+        roomId: form.roomId,
+        seatId: selectedSeat.value.id,
+        slotId: form.slotId,
+        reserveDate: form.reserveDate
+      }});
+      ElMessage.success('预约成功');
+      dialogVisible.value = false;
+      selectedSeat.value = null;
+      loadSeatsAndOccupied();
+    }
+    onMounted(() => {
+      form.reserveDate = todayPlus(1);
+      loadRooms(); loadSlots();
+    });
+    return { rooms, slots, seats, form, loading, selectedSeat, dialogVisible,
+             filteredSeats, seatColumns, freeCount, occupiedCount, seatStyle, clickSeat, openConfirm, confirmReserve, loadSeatsAndOccupied, todayPlus };
+  },
+  template: `
+    <div class="card">
+      <div class="toolbar" style="flex-wrap:wrap;gap:8px;">
+        <el-select v-model="form.roomId" placeholder="选择自习室" size="small" style="width:170px" @change="loadSeatsAndOccupied">
+          <el-option v-for="r in rooms" :key="r.id" :value="r.id" :label="r.roomName"></el-option>
+        </el-select>
+        <el-date-picker v-model="form.reserveDate" type="date" placeholder="预约日期" size="small" value-format="YYYY-MM-DD" style="width:150px" @change="loadSeatsAndOccupied"></el-date-picker>
+        <el-select v-model="form.slotId" placeholder="选择时段" size="small" style="width:170px" @change="loadSeatsAndOccupied">
+          <el-option v-for="s in slots" :key="s.id" :value="s.id" :label="s.slotName + ' ' + (s.startTime||'').substring(0,5) + '-' + (s.endTime||'').substring(0,5)"></el-option>
+        </el-select>
+        <el-select v-model="form.seatFilter" size="small" style="width:120px">
+          <el-option label="全部座位" value="all"></el-option>
+          <el-option label="带电源" value="power"></el-option>
+          <el-option label="靠窗" value="window"></el-option>
+        </el-select>
+      </div>
+      <div style="margin: 10px 0;display:flex;align-items:center;gap:16px;font-size:12px;color:#606266;flex-wrap:wrap;">
+        <span><i style="display:inline-block;width:12px;height:12px;background:#67c23a;border-radius:2px;margin-right:4px;vertical-align:middle;"></i>空闲</span>
+        <span><i style="display:inline-block;width:12px;height:12px;background:#f56c6c;border-radius:2px;margin-right:4px;"></i>已预约</span>
+        <span><i style="display:inline-block;width:12px;height:12px;background:#409eff;border-radius:2px;margin-right:4px;"></i>已选中</span>
+        <span><i style="display:inline-block;width:12px;height:12px;background:#c0c4cc;border-radius:2px;margin-right:4px;"></i>不可用</span>
+        <div style="flex:1;"></div>
+        <span v-if="filteredSeats.length" style="color:#909399;">共 {{ filteredSeats.length }} 座 / 空闲 {{ freeCount }} / 已约 {{ occupiedCount }}</span>
+        <span v-if="selectedSeat" style="color:#409eff;">已选：<b>{{ selectedSeat.seatNo }}</b></span>
+        <el-button type="primary" size="small" :disabled="!selectedSeat" @click="openConfirm">确认预约</el-button>
+      </div>
+      <div v-loading="loading" style="padding:20px;min-height:280px;background:#f7f8fa;border:1px solid #ebeef5;border-radius:4px;">
+        <!-- 座位区：左右两列，中间过道 -->
+        <div v-if="filteredSeats.length" style="max-width:480px;margin:0 auto;display:flex;justify-content:center;gap:60px;">
+          <div v-for="(col, idx) in seatColumns" :key="idx" style="display:flex;flex-direction:column;gap:18px;">
+            <div v-for="s in col" :key="s.id" @click="clickSeat(s)"
+                 :style="seatStyle(s)"
+                 style="width:90px;height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;font-size:13px;border:1px solid transparent;transition:all .15s;user-select:none;">
+              <div style="font-weight:600;line-height:1.2;">{{ s.seatNo }}</div>
+              <div style="font-size:11px;margin-top:3px;opacity:0.85;">
+                <span v-if="s.hasPower">⚡</span><span v-if="s.hasWindow">🪟</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="!loading && filteredSeats.length===0" style="text-align:center;color:#909399;padding:80px 0;font-size:13px;">
+          <div style="font-size:36px;margin-bottom:10px;">🪑</div>
+          <span v-if="seats.length===0">请先选择自习室、日期和时段</span>
+          <span v-else>当前筛选条件下没有符合的座位</span>
+        </div>
+      </div>
+    </div>
+    <el-dialog v-model="dialogVisible" title="确认预约" width="420px" append-to-body>
+      <div v-if="selectedSeat" style="line-height:1.9;">
+        <div>座位号：<b>{{ selectedSeat.seatNo }}</b></div>
+        <div>日期：{{ form.reserveDate }}</div>
+        <div>时段：{{ (slots.find(s=>s.id===form.slotId)||{}).slotName }}（{{ (slots.find(s=>s.id===form.slotId)||{}).startTime || '' }} - {{ (slots.find(s=>s.id===form.slotId)||{}).endTime || '' }}）</div>
+      </div>
+      <template #footer>
+        <el-button @click="dialogVisible=false">取 消</el-button>
+        <el-button type="primary" @click="confirmReserve">确认预约</el-button>
+      </template>
+    </el-dialog>
+  `
+});
+
+/* 个人中心 */
+const StudentProfileComp = defineComponent({
+  setup() {
+    const form = reactive({});
+    const loading = ref(false);
+    onMounted(() => {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      Object.assign(form, u);
+    });
+    async function save() {
+      loading.value = true;
+      try {
+        await http('/api/system/user', { method: 'PUT', body: form });
+        ElMessage.success('保存成功');
+        localStorage.setItem('user', JSON.stringify(form));
+      } finally { loading.value = false; }
+    }
+    return { form, loading, save };
+  },
+  template: `
+    <div class="card" style="max-width:600px;">
+      <h3 style="margin:0 0 16px;font-size:15px;">个人信息</h3>
+      <el-form :model="form" label-width="100px" class="dialog-form">
+        <el-form-item label="头像">
+          <el-upload :action="'/api/file/upload'" :show-file-list="false"
+                     :on-success="(res)=>{ if(res.code===200) form.avatarUrl=res.data }"
+                     accept="image/*">
+            <img v-if="form.avatarUrl" :src="form.avatarUrl" style="width:80px;height:80px;border-radius:50%;object-fit:cover;">
+            <div v-else style="width:80px;height:80px;border:1px dashed #dcdfe6;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#909399;font-size:12px;">上传</div>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="姓名"><el-input v-model="form.realName" disabled></el-input></el-form-item>
+        <el-form-item label="学号"><el-input v-model="form.studentNo" disabled></el-input></el-form-item>
+        <el-form-item label="学院"><el-input v-model="form.college"></el-input></el-form-item>
+        <el-form-item label="专业"><el-input v-model="form.major"></el-input></el-form-item>
+        <el-form-item label="班级"><el-input v-model="form.className"></el-form-item>
+        <el-form-item label="手机号"><el-input v-model="form.phone"></el-input></el-form-item>
+        <el-form-item label="邮箱"><el-input v-model="form.email"></el-input></el-form-item>
+        <el-form-item label="信用分"><el-input v-model="form.creditScore" disabled></el-input></el-form-item>
+        <el-form-item label=" ">
+          <el-button type="primary" :loading="loading" @click="save">保存修改</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+  `
+});
+
+/* ========== 主应用 ========== */
+const app = createApp({
+  setup() {
+    const token = ref(localStorage.getItem('token') || '');
+    const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+    const loginForm = reactive({ username: '', password: '' });
+    const loginLoading = ref(false);
+    const registerMode = ref(false);
+    const registerLoading = ref(false);
+    const registerForm = reactive({
+      username: '', passwordHash: '', confirmPassword: '',
+      realName: '', studentNo: '', college: '', major: ''
+    });
+
+    const menuTitles = {
+      'dashboard': '工作台',
+      'student-my': '我的预约', 'student-pick': '选座预约', 'student-profile': '个人中心',
+      'system-user': '用户管理', 'system-role': '角色管理', 'system-config': '参数配置', 'system-log': '操作日志',
+      'venue-campus': '校区管理', 'venue-building': '楼栋管理', 'venue-room': '自习室管理',
+      'venue-seat': '座位管理', 'venue-device': '设备管理',
+      'reservation-list': '预约记录', 'reservation-rule': '预约规则', 'reservation-slot': '时段管理', 'reservation-checkin': '签到记录',
+      'credit-blacklist': '黑名单', 'credit-violation': '违规记录', 'credit-log': '信用流水',
+      'notice-list': '消息通知', 'notice-feedback': '反馈管理'
+    };
+
+    const activeMenu = ref('dashboard');
+    const currentTitle = ref('工作台');
+
+    const compMap = {
+      'student-my': StudentMyComp, 'student-pick': StudentPickComp, 'student-profile': StudentProfileComp,
+      'system-user': SysUserComp, 'system-role': SysRoleComp, 'system-config': SysConfigComp, 'system-log': OperationLogComp,
+      'venue-campus': CampusComp, 'venue-building': BuildingComp, 'venue-room': RoomComp,
+      'venue-seat': SeatComp, 'venue-device': DeviceComp,
+      'reservation-list': ReservationComp, 'reservation-rule': RuleComp, 'reservation-slot': TimeSlotComp, 'reservation-checkin': CheckinComp,
+      'credit-blacklist': BlacklistComp, 'credit-violation': ViolationComp, 'credit-log': CreditLogComp,
+      'notice-list': NotificationComp, 'notice-feedback': FeedbackComp
+    };
+    const activeCompList = Object.keys(compMap);
+
+    // 是否管理员
+    const isAdmin = computed(() => {
+      const roles = user.value.roles || [];
+      return roles.includes('ADMIN');
+    });
+    // 是否教师
+    const isTeacher = computed(() => {
+      const roles = user.value.roles || [];
+      return roles.includes('TEACHER') && !roles.includes('ADMIN');
+    });
+
+    const stat = reactive({ userTotal: 0, seatTotal: 0, todayRes: 0, feedbackPending: 0 });
+    const recentLogs = ref([]);
+
+    async function loadDashboard() {
+      try {
+        const [u, s, r, f, logs] = await Promise.all([
+          http('/api/system/user/page?current=1&size=1'),
+          http('/api/venue/seat/page?current=1&size=1'),
+          http('/api/reservation/reservation/page?current=1&size=1'),
+          http('/api/notice/feedback/page?current=1&size=1'),
+          http('/api/system/operation-log/page?current=1&size=8')
+        ]);
+        stat.userTotal = u.total;
+        stat.seatTotal = s.total;
+        stat.todayRes = r.total;
+        stat.feedbackPending = f.total;
+        recentLogs.value = logs.records || [];
+      } catch (e) {}
+    }
+
+    async function doLogin() {
+      if (!loginForm.username || !loginForm.password) {
+        ElMessage.warning('请输入用户名和密码'); return;
+      }
+      loginLoading.value = true;
+      try {
+        const data = await http('/api/system/auth/login', { method: 'POST', body: loginForm });
+        const u = Object.assign({}, data.user || data, { roles: data.roles || (data.roles ? data.roles : []) });
+        localStorage.setItem('token', 'authed');
+        localStorage.setItem('user', JSON.stringify(u));
+        token.value = 'authed';
+        user.value = u;
+        ElMessage.success('登录成功');
+        // 根据角色跳默认页
+        const roles = u.roles || [];
+        if (roles.includes('ADMIN')) {
+          activeMenu.value = 'dashboard';
+          currentTitle.value = '工作台';
+          loadDashboard();
+        } else if (roles.includes('TEACHER')) {
+          activeMenu.value = 'dashboard';
+          currentTitle.value = '工作台';
+        } else {
+          activeMenu.value = 'student-my';
+          currentTitle.value = '我的预约';
+        }
+      } catch (e) {
+      } finally { loginLoading.value = false; }
+    }
+
+    async function doRegister() {
+      const f = registerForm;
+      if (!f.username || !f.passwordHash) { ElMessage.warning('请输入用户名和密码'); return; }
+      if (f.passwordHash.length < 6) { ElMessage.warning('密码至少 6 位'); return; }
+      if (f.passwordHash !== f.confirmPassword) { ElMessage.warning('两次密码不一致'); return; }
+      if (!f.realName || !f.studentNo) { ElMessage.warning('请输入姓名和学号'); return; }
+      registerLoading.value = true;
+      try {
+        await http('/api/system/auth/register', { method: 'POST', body: f });
+        ElMessage.success('注册成功，请登录');
+        // 注册成功后自动切回登录页，并预填用户名
+        loginForm.username = f.username;
+        loginForm.password = '';
+        registerMode.value = false;
+      } catch (e) {
+      } finally { registerLoading.value = false; }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      token.value = '';
+    }
+
+    function onMenuSelect(idx) {
+      activeMenu.value = idx;
+      currentTitle.value = menuTitles[idx] || '';
+      if (idx === 'dashboard') loadDashboard();
+    }
+
+    onMounted(() => {
+      if (token.value) {
+        if (isAdmin.value) { loadDashboard(); }
+        else if (isTeacher.value) { /* 教师工作台空着 */ }
+        else { activeMenu.value = 'student-my'; currentTitle.value = '我的预约'; }
+      }
+    });
+
+    return { token, user, loginForm, loginLoading, doLogin, logout,
+             registerMode, registerForm, registerLoading, doRegister,
+             activeMenu, currentTitle, compMap, activeCompList, onMenuSelect,
+             stat, recentLogs, isAdmin, isTeacher };
+  }
+});
+
+/* 因为模板中需要 <component :is>，而 setup 返回 compMap，这里用 render 方式 */
+app.component('SysUser', SysUserComp);
+app.component('SysRole', SysRoleComp);
+app.component('SysConfig', SysConfigComp);
+app.component('OperationLog', OperationLogComp);
+app.component('Campus', CampusComp);
+app.component('Building', BuildingComp);
+app.component('Room', RoomComp);
+app.component('Seat', SeatComp);
+app.component('Device', DeviceComp);
+app.component('Reservation', ReservationComp);
+app.component('Rule', RuleComp);
+app.component('TimeSlot', TimeSlotComp);
+app.component('Checkin', CheckinComp);
+app.component('Blacklist', BlacklistComp);
+app.component('Violation', ViolationComp);
+app.component('CreditLog', CreditLogComp);
+app.component('Notification', NotificationComp);
+app.component('Feedback', FeedbackComp);
+
+for (const [k, c] of Object.entries(ElementPlusIconsVue)) {
+  app.component(k, c);
+}
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
+</html>
