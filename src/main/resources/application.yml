@@ -24,6 +24,11 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
+  # 前后端分离：后端仅提供 API，禁用默认静态页面托管（前端由 frontend/serve.py 独立运行）
+  web:
+    resources:
+      add-mappings: false
+
 # 上传文件保存目录（项目运行目录下的 uploads/）
 file:
   upload-dir: ./uploads

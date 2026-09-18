@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -32,8 +33,8 @@ public class GlobalExceptionHandler {
     }
 
     /** 资源不存在（访问不存在的路径时返回 404 而不是 500） */
-    @ExceptionHandler(NoResourceFoundException.class)
-    public Result<Void> handleNotFound(NoResourceFoundException e) {
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public Result<Void> handleNotFound(Exception e) {
         return Result.error(ResultCode.NOT_FOUND);
     }
 
